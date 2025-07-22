@@ -1,8 +1,8 @@
 <?php
 // Config
 $cookieFile = "makaut_cookies.txt";
-$username = "17600121040"; // <-- Your roll/username
-$password = "31082002";    // <-- Your password
+$username = ""; // <-- Your roll/username
+$password = "";    // <-- Your password
 
 if (file_exists($cookieFile)) unlink($cookieFile);
 
