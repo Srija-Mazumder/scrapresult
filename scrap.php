@@ -122,8 +122,8 @@ echo "🔑 CSRF Token: $csrfToken\n";
 
 // Step 6: Prepare and send login POST request
 $loginUrl = "https://makaut1.ucanapply.com/smartexam/public/checkLogin";
-$username = "17600121040"; // <-- Your roll/username
-$password = "31082002";    // <-- Your password
+$username = ""; // <-- Your roll/username
+$password = "";    // <-- Your password
 
 $postData = http_build_query([
     '_token' => $csrfToken,
