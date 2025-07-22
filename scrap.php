@@ -1,378 +1,91 @@
 <?php
-// File to store cookies
+// Config
 $cookieFile = "makaut_cookies.txt";
+$username = "17600121040"; // <-- Your roll/username
+$password = "31082002";    // <-- Your password
 
-// Clear old cookies
-if (file_exists($cookieFile)) {
-    unlink($cookieFile);
-}
+if (file_exists($cookieFile)) unlink($cookieFile);
 
-// Step 1: Start from the MAKAUT main site
-$startUrl = "https://www.makautexam.net/";
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $startUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_HEADER, true);
-curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-curl_setopt($ch, CURLOPT_REFERER, "https://www.google.com/");
-curl_setopt($ch, CURLOPT_VERBOSE, true);
-
-$response1 = curl_exec($ch);
-$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-$header = substr($response1, 0, $headerSize);
-$body = substr($response1, $headerSize);
-$finalUrl1 = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-echo "🔁 HTTP Code: $httpCode\n";
-echo "🔁 Redirected to: $finalUrl1\n";
-echo "📋 Response Headers:\n$header\n\n";
-
-file_put_contents("initial_response.html", $body);
-
-// Check for JS redirect (not likely needed, but kept for completeness)
-if (preg_match('/window\.location\.href\s*=\s*["\']([^"\']+)["\']/', $body, $matches) ||
-    preg_match('/window\.location\s*=\s*["\']([^"\']+)["\']/', $body, $matches) ||
-    preg_match('/location\.replace\(["\']([^"\']+)["\']\)/', $body, $matches)) {
-    $jsRedirectUrl = $matches[1];
-    echo "🔍 Found JavaScript redirect to: $jsRedirectUrl\n\n";
-    if (strpos($jsRedirectUrl, 'http') !== 0) {
-        $jsRedirectUrl = rtrim($startUrl, '/') . '/' . ltrim($jsRedirectUrl, '/');
-    }
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $jsRedirectUrl);
+// Step 1: Get login page and CSRF token
+function curl_get($url, $cookieFile, $referer = null, $headers = []) {
+    $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_HEADER, false);
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    curl_setopt($ch, CURLOPT_REFERER, $startUrl);
-    $response2 = curl_exec($ch);
-    $finalUrl2 = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+    if ($referer) curl_setopt($ch, CURLOPT_REFERER, $referer);
+    if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $res = curl_exec($ch);
     curl_close($ch);
-} else {
-    echo "⚠️ No JavaScript redirect found. Trying direct access to login page...\n\n";
-    $directLoginUrl = "https://makaut1.ucanapply.com/smartexam/public/";
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $directLoginUrl);
+    return $res;
+}
+function curl_post($url, $post, $cookieFile, $referer = null, $headers = []) {
+    $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_HEADER, false);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    curl_setopt($ch, CURLOPT_REFERER, $startUrl);
-    $response2 = curl_exec($ch);
-    $finalUrl2 = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+    if ($referer) curl_setopt($ch, CURLOPT_REFERER, $referer);
+    if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $res = curl_exec($ch);
     curl_close($ch);
+    return $res;
 }
 
-echo "🧭 Final Page: $finalUrl2\n\n";
-file_put_contents("login_page.html", $response2);
-echo "✅ Login page saved to login_page.html\n\n";
-
-// Step 4: Get dynamic login form with CSRF token
-$formUrl = "https://makaut1.ucanapply.com/smartexam/public/get-login-form?typ=5";
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $formUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
+// Step 1: Get login form (for CSRF token)
+$loginPage = curl_get("https://makaut1.ucanapply.com/smartexam/public/", $cookieFile);
+$formJson = curl_get("https://makaut1.ucanapply.com/smartexam/public/get-login-form?typ=5", $cookieFile, null, [
     'X-Requested-With: XMLHttpRequest',
-    'Accept: application/json, text/javascript, */*; q=0.01',
-    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Referer: https://makaut1.ucanapply.com/smartexam/public/'
+    'Accept: application/json, text/javascript, */*; q=0.01'
 ]);
-$jsonResponse = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+$data = json_decode($formJson, true);
+if (!isset($data['html'])) die("Login form not found\n");
+if (!preg_match('/name=[\'"]_token[\'"][^>]*value=[\'"]([^\'"]+)[\'"]/', $data['html'], $m)) die("CSRF token not found\n");
+$csrfToken = $m[1];
 
-echo "📡 get-login-form HTTP Code: $httpCode\n";
-echo "📡 Response length: " . strlen($jsonResponse) . " bytes\n";
-file_put_contents("get_login_form_response.txt", $jsonResponse);
-
-$data = json_decode($jsonResponse, true);
-if (!isset($data['html'])) {
-    echo "❌ Failed to retrieve login form. Response:\n";
-    echo substr($jsonResponse, 0, 500) . "...\n";
-    die();
-}
-file_put_contents("login_form_html.html", $data['html']);
-
-if (!preg_match('/name=[\'"]_token[\'"][^>]*value=[\'"]([^\'"]+)[\'"]/', $data['html'], $matches)) {
-    die("CSRF token not found.\n");
-}
-$csrfToken = $matches[1];
-echo "🔑 CSRF Token: $csrfToken\n";
-
-// Step 6: Prepare and send login POST request
-$loginUrl = "https://makaut1.ucanapply.com/smartexam/public/checkLogin";
-$username = ""; // <-- Your roll/username
-$password = "";    // <-- Your password
-
+// Step 2: Login
 $postData = http_build_query([
     '_token' => $csrfToken,
     'typ' => 5,
     'username' => $username,
     'password' => $password,
 ]);
-
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $loginUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
+$loginRes = curl_post("https://makaut1.ucanapply.com/smartexam/public/checkLogin", $postData, $cookieFile, "https://makaut1.ucanapply.com/smartexam/public/", [
     'Content-Type: application/x-www-form-urlencoded',
     "X-CSRF-TOKEN: $csrfToken",
-    'X-Requested-With: XMLHttpRequest',
-    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Referer: https://makaut1.ucanapply.com/smartexam/public/'
+    'X-Requested-With: XMLHttpRequest'
 ]);
-$loginResponse = curl_exec($ch);
-$loginFinalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-$loginHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
 
-file_put_contents("dashboard.html", $loginResponse);
-echo "✅ Login POST complete. HTTP Code: $loginHttpCode\n";
-echo "📄 Final URL after login: $loginFinalUrl\n";
-echo "📝 Dashboard HTML saved to dashboard.html\n";
+// Step 3: Fetch student activity page
+$activityHtml = curl_get("https://makaut1.ucanapply.com/smartexam/public/student/student-activity", $cookieFile);
 
-if (strpos($loginResponse, 'dashboard') !== false || strpos($loginFinalUrl, 'dashboard') !== false) {
-    echo "✅ Login seems successful.\n";
-} else {
-    echo "❌ Login might have failed. Check dashboard.html manually.\n";
-}
+// Step 4: Extract all result forms
+preg_match_all('/<form[^>]*action="([^"]*results-details[^"]*)"[^>]*>(.*?)<\/form>/is', $activityHtml, $forms, PREG_SET_ORDER);
+if (!$forms) die("No result forms found\n");
 
-// Step 7: Fetch the student activity page after login
-$activityUrl = "https://makaut1.ucanapply.com/smartexam/public/student/student-activity";
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $activityUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-curl_setopt($ch, CURLOPT_REFERER, $loginFinalUrl);
-$activityHtml = curl_exec($ch);
-curl_close($ch);
-
-file_put_contents("student_activity.html", $activityHtml);
-echo "✅ Student Activity page fetched and saved to student_activity.html\n";
-
-// Step 8: Extract ALL Result forms and download ALL PDFs
-
-// ... [Keep all your existing code up to Step 7] ...
-
-// Step 8: Extract ALL Result forms and download ALL PDFs
-
-// First, let's see what's in the activity page
-echo "\n📋 Analyzing student_activity.html...\n";
-
-// More flexible form extraction
-preg_match_all('/<form[^>]*>(.*?)<\/form>/is', $activityHtml, $allForms);
-echo "Found " . count($allForms[0]) . " total forms\n";
-
-// Look for forms with results-details action
-$resultForms = [];
-foreach ($allForms[0] as $formHtml) {
-    if (strpos($formHtml, 'results-details') !== false) {
-        $resultForms[] = $formHtml;
-    }
-}
-
-echo "Found " . count($resultForms) . " result forms\n\n";
-
-if (empty($resultForms)) {
-    echo "❌ No result forms found. Let's check what URLs are available:\n";
-    // Extract all URLs that might be result links
-    preg_match_all('/href="([^"]*results-details[^"]*)"/', $activityHtml, $urlMatches);
-    if ($urlMatches[1]) {
-        echo "Found these result URLs:\n";
-        foreach ($urlMatches[1] as $url) {
-            echo " - $url\n";
-        }
-    }
-    
-    // Also check for onclick handlers
-    preg_match_all('/onclick="[^"]*results-details[^"]*"/', $activityHtml, $onclickMatches);
-    if ($onclickMatches[0]) {
-        echo "\nFound onclick handlers:\n";
-        foreach ($onclickMatches[0] as $onclick) {
-            echo " - $onclick\n";
-        }
-    }
-    exit;
-}
-
-// Process each result form
-foreach ($resultForms as $i => $formHtml) {
-    echo "\n🔍 Processing form " . ($i + 1) . "...\n";
-    
-    // Extract form action
-    preg_match('/action="([^"]+)"/', $formHtml, $actionMatch);
-    if (!$actionMatch) {
-        echo "❌ No action found in form\n";
-        continue;
-    }
-    
-    $formAction = html_entity_decode($actionMatch[1]);
-    
-    // Make sure URL is complete
-    if (!preg_match('/^https?:\/\//', $formAction)) {
-        $formAction = 'https://makaut1.ucanapply.com' . $formAction;
-    }
-    
-    echo "📍 Form action: $formAction\n";
-    
-    // Extract ALL input fields (more flexible regex)
-    preg_match_all('/<input[^>]+>/i', $formHtml, $inputs);
-    
-    $postFields = [];
-    foreach ($inputs[0] as $input) {
-        // Extract name
-        if (preg_match('/name=["\']([^"\']+)["\']/', $input, $nameMatch)) {
-            $name = $nameMatch[1];
-            
-            // Extract value
-            $value = '';
-            if (preg_match('/value=["\']([^"\']*)["\']/', $input, $valueMatch)) {
-                $value = html_entity_decode($valueMatch[1]);
-            }
-            
-            $postFields[$name] = $value;
-            echo "  Field: $name = " . substr($value, 0, 50) . (strlen($value) > 50 ? '...' : '') . "\n";
-        }
-    }
-    
-    // Check for CSRF token in the page
-    if (preg_match('/name=["\']_token["\'][^>]*value=["\']([^"\']+)["\']/', $activityHtml, $tokenMatch)) {
-        $postFields['_token'] = $tokenMatch[1];
-        echo "  Added CSRF token\n";
-    }
-    
-    // Determine filename
-    $filename = "result_semester_" . ($i + 1) . ".pdf";
-    if (isset($postFields['provisional']) && $postFields['provisional'] === 'Y') {
-        $filename = "provisional_certificate.pdf";
-    }
-    
-    echo "📥 Downloading to: $filename\n";
-    
-    // Download the PDF
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $formAction);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postFields));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-    curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+// Step 5: Download all result PDFs
+foreach ($forms as $i => $form) {
+    $action = html_entity_decode($form[1]);
+    if (strpos($action, 'http') !== 0) $action = 'https://makaut1.ucanapply.com' . $action;
+    $inputs = [];
+    preg_match_all('/<input[^>]+name=["\']([^"\']+)["\'][^>]*value=["\']([^"\']*)["\'][^>]*>/i', $form[2], $fields, PREG_SET_ORDER);
+    foreach ($fields as $f) $inputs[$f[1]] = html_entity_decode($f[2]);
+    // Add CSRF token if not present
+    if (!isset($inputs['_token']) && preg_match('/name=["\']_token["\'][^>]*value=["\']([^"\']+)["\']/', $activityHtml, $tm)) $inputs['_token'] = $tm[1];
+    $pdf = curl_post($action, http_build_query($inputs), $cookieFile, "https://makaut1.ucanapply.com/smartexam/public/student/student-activity", [
         'Content-Type: application/x-www-form-urlencoded',
-        'Accept: application/pdf,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8',
-        'Referer: https://makaut1.ucanapply.com/smartexam/public/student/student-activity'
+        'Accept: application/pdf'
     ]);
-    
-    // Add verbose output for debugging
-    curl_setopt($ch, CURLOPT_VERBOSE, true);
-    $verbose = fopen('php://temp', 'w+');
-    curl_setopt($ch, CURLOPT_STDERR, $verbose);
-    
-    $resultData = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-    
-    // Get verbose output
-    rewind($verbose);
-    $verboseLog = stream_get_contents($verbose);
-    
-    curl_close($ch);
-    
-    echo "  HTTP Code: $httpCode\n";
-    echo "  Content-Type: $contentType\n";
-    echo "  Effective URL: $effectiveUrl\n";
-    echo "  Response size: " . strlen($resultData) . " bytes\n";
-    
-    if (strpos($contentType, 'application/pdf') !== false || substr($resultData, 0, 4) === '%PDF') {
-        file_put_contents($filename, $resultData);
-        echo "✅ Successfully downloaded: $filename\n";
-    } else {
-        // $debugFile = "debug_response_$i.html";
-        // file_put_contents($debugFile, $resultData);
-        // file_put_contents("debug_verbose_$i.txt", $verboseLog);
-        // echo "❌ Failed to download PDF. Response saved to $debugFile\n";
-        
-        // Check if it's a redirect or error page
-        if (strpos($resultData, 'login') !== false) {
-            echo "  ⚠️ Seems like session expired. You might need to re-login.\n";
-        }
-        if (preg_match('/<title>([^<]+)<\/title>/i', $resultData, $titleMatch)) {
-            echo "  Page title: " . $titleMatch[1] . "\n";
-        }
-    }
-}
-
-// Alternative approach if forms don't work
-echo "\n\n🔄 Alternative approach - trying direct links:\n";
-
-// Look for direct PDF links
-preg_match_all('/href="([^"]*\.pdf[^"]*)"/', $activityHtml, $pdfLinks);
-if ($pdfLinks[1]) {
-    foreach ($pdfLinks[1] as $i => $pdfUrl) {
-        if (!preg_match('/^https?:\/\//', $pdfUrl)) {
-            $pdfUrl = 'https://makaut1.ucanapply.com' . $pdfUrl;
-        }
-        
-        echo "\nTrying direct PDF link: $pdfUrl\n";
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $pdfUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-        curl_setopt($ch, CURLOPT_REFERER, 'https://makaut1.ucanapply.com/smartexam/public/student/student-activity');
-        
-        $pdfData = curl_exec($ch);
-        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-        curl_close($ch);
-        
-        if (strpos($contentType, 'application/pdf') !== false || substr($pdfData, 0, 4) === '%PDF') {
-            $filename = "direct_pdf_" . ($i + 1) . ".pdf";
-            file_put_contents($filename, $pdfData);
-            echo "✅ Downloaded: $filename\n";
-        }
-    }
+    $fname = "result_semester_" . ($i+1) . ".pdf";
+    if (substr($pdf, 0, 4) === '%PDF') file_put_contents($fname, $pdf);
+    echo "Downloaded: $fname\n";
 }
 ?>
